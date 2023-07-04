@@ -54,6 +54,18 @@ async function updateLead(req, res) {
   }
 }
 
+async function updateLeadByKey(req, res) {
+  try {
+      const { id } = req.params
+      const { key, value } = req.body
+      const updatedLead = await leadService.updateByKey(id, key, value)
+      res.json(updatedLead)
+  } catch (err) {
+      logger.error('Failed to update lead', err)
+      res.status(500).send({ err: 'Failed to update lead' })
+  }
+}
+
 async function removeLead(req, res) {
   try {
     const leadId = req.params.id
@@ -102,6 +114,7 @@ module.exports = {
   getLeadById,
   addLead,
   updateLead,
+  updateLeadByKey,
   removeLead,
   addLeadMsg,
   removeLeadMsg

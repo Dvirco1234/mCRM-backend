@@ -1,15 +1,34 @@
 const dbService = require('../../services/db.service')
 const logger = require('../../services/logger.service')
+const { getSheet, updateSheet } = require('../../services/sheet.service')
 const utilService = require('../../services/util.service')
 const ObjectId = require('mongodb').ObjectId
 
-async function query(filterBy={txt:''}) {
+const fieldsMap = {
+    status: 'A',
+    fullname: 'B',
+    phone: 'C',
+    email: 'D',
+    createdAt: 'E',
+    channel: 'F',
+    source: 'G',
+    status: 'H',
+    blocker: 'I',
+    afterIntroStatus: 'J',
+    RegistrationStatus: 'K',
+    lastContactBy: 'L',
+    lastContactAt: 'M',
+    lastContactMethod: 'N',
+    contactLog: 'O',
+    nextContactDate: 'P',
+    nextContactTime: 'Q',
+}
+
+async function query(filterBy = { txt: '' }) {
     try {
-        const criteria = {
-            vendor: { $regex: filterBy.txt, $options: 'i' }
-        }
-        const collection = await dbService.getCollection('note')
-        var leads = await collection.find(criteria).toArray()
+        const sheet = await getSheet()
+        console.log('sheet: ', sheet)
+        const leads = _prepData(sheet)
         return leads
     } catch (err) {
         logger.error('cannot find leads', err)
@@ -18,9 +37,10 @@ async function query(filterBy={txt:''}) {
 }
 
 async function getById(leadId) {
+    console.log('leadId: ', leadId)
     try {
-        const collection = await dbService.getCollection('lead')
-        const lead = collection.findOne({ _id: ObjectId(leadId) })
+        const sheet = await getSheet(leadId, leadId)
+        const lead = _prepLeadFromRow(sheet.values[0], leadId)
         return lead
     } catch (err) {
         logger.error(`while finding lead ${leadId}`, err)
@@ -52,15 +72,25 @@ async function add(lead) {
 
 async function update(lead) {
     try {
-        const leadToSave = {
-            vendor: lead.vendor,
-            price: lead.price
-        }
-        const collection = await dbService.getCollection('lead')
-        await collection.updateOne({ _id: ObjectId(lead._id) }, { $set: leadToSave })
-        return lead
+        // const leadToSave = {
+        //     vendor: lead.vendor,
+        //     price: lead.price,
+        // }
+        // const collection = await dbService.getCollection('lead')
+        // await collection.updateOne({ _id: ObjectId(lead._id) }, { $set: leadToSave })
+        // return lead
     } catch (err) {
-        logger.error(`cannot update lead ${leadId}`, err)
+        // logger.error(`cannot update lead ${leadId}`, err)
+        throw err
+    }
+}
+
+async function updateByKey(id, key, value) {
+    try {
+        const res = await updateSheet(id, fieldsMap[key], value)
+        console.log('res: ', res);
+    } catch (err) {
+        logger.error('Error updating note:', err)
         throw err
     }
 }
@@ -80,7 +110,7 @@ async function addLeadMsg(leadId, msg) {
 async function removeLeadMsg(leadId, msgId) {
     try {
         const collection = await dbService.getCollection('lead')
-        await collection.updateOne({ _id: ObjectId(leadId) }, { $pull: { msgs: {id: msgId} } })
+        await collection.updateOne({ _id: ObjectId(leadId) }, { $pull: { msgs: { id: msgId } } })
         return msgId
     } catch (err) {
         logger.error(`cannot add lead msg ${leadId}`, err)
@@ -94,6 +124,72 @@ module.exports = {
     getById,
     add,
     update,
+    updateByKey,
     addLeadMsg,
-    removeLeadMsg
+    removeLeadMsg,
+}
+
+function _prepData({ values, range }) {
+    console.log('range: ', range)
+    // const fields = {
+    //     'status': 'סטטוס' ,
+    //     'fullname': 'שם מלא' ,
+    //     'firstName': 'שם פרטי' ,
+    //     'lastName': 'שם משפחה' ,
+    //     'phone': 'טלפון' ,
+    //     'email': 'אימייל' ,
+    //     'leadManager': 'מנהל לקוח' ,
+    //     'channel': "צ'אנל",
+    //     'createdAt': 'תאריך כניסה',
+    //     'message': 'הודעה' ,
+    //     'contactLog': 'לוג שיחה' ,
+    //     'source': 'מקור' ,
+    //     'blocker': 'חסם פוטנציאלי' ,
+    //     'lastContactMethod': 'אמצעי קשר אחרון' ,
+    //     'lastContactBy': 'מי תקשר אחרון' ,
+    //     'lastContactAt': 'תאריך תקשורת אחרון',
+    //     'nextContactTime': 'זמן התקשרות הבא' ,
+    //     'nextContactDate': 'תאריך התקשרות הבא',
+    // }
+
+    const rangeString = range.split('!')[1]
+    const regex = /(\d+)/g
+    const numbers = rangeString.match(regex)
+    let rangeStart = parseInt(numbers[0])
+
+    return values.map(row => {
+        const lead = _prepLeadFromRow(row, rangeStart++)
+        return lead
+    })
+}
+
+function _prepLeadFromRow(row, rangeStart) {
+    const fields = [
+        'status',
+        'fullname',
+        // 'firstName' ,
+        // 'lastName' ,
+        'phone',
+        'email',
+        'createdAt',
+        'channel',
+        'source',
+        'status',
+        'blocker',
+        'afterIntroStatus',
+        'RegistrationStatus',
+        // 'leadManager',
+        'lastContactBy',
+        'lastContactAt',
+        'lastContactMethod',
+        'contactLog',
+        'nextContactDate',
+        'nextContactTime',
+        // 'message',
+    ]
+    const lead = {}
+    fields.forEach((field, idx) => (lead[field] = row[idx]))
+    lead._id = rangeStart
+    lead.logs = row[14] ? row[14].split('\n') : []
+    return lead
 }

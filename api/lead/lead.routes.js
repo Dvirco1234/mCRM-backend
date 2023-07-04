@@ -1,7 +1,7 @@
 const express = require('express')
 // const { requireAuth, requireAdmin } = require('../../middlewares/requireAuth.middleware')
 // const { log } = require('../../middlewares/logger.middleware')
-const { getLeads, getLeadById, addLead, updateLead, removeLead, addLeadMsg, removeLeadMsg } = require('./lead.controller')
+const { getLeads, getLeadById, addLead, updateLead, removeLead, updateLeadByKey, addLeadMsg, removeLeadMsg } = require('./lead.controller')
 const router = express.Router()
 
 // middleware that is specific to this router
@@ -11,6 +11,7 @@ router.get('/', getLeads)
 router.get('/:id', getLeadById)
 router.post('/', addLead)
 router.put('/:id', updateLead)
+router.put('/by-key/:id', updateLeadByKey)
 router.delete('/:id', removeLead)
 // router.post('/', requireAuth, addLead)
 // router.put('/:id', requireAuth, updateLead)
