@@ -12,10 +12,10 @@ const fieldsMap = {
     createdAt: 'E',
     channel: 'F',
     source: 'G',
-    status: 'H',
+    beforeIntroStatus: 'H',
     blocker: 'I',
     afterIntroStatus: 'J',
-    RegistrationStatus: 'K',
+    registrationStatus: 'K',
     lastContactBy: 'L',
     lastContactAt: 'M',
     lastContactMethod: 'N',
@@ -27,7 +27,7 @@ const fieldsMap = {
 async function query(filterBy = { txt: '' }) {
     try {
         const sheet = await getSheet()
-        console.log('sheet: ', sheet)
+        // console.log('sheet: ', sheet)
         const leads = _prepData(sheet)
         return leads
     } catch (err) {
@@ -88,7 +88,8 @@ async function update(lead) {
 async function updateByKey(id, key, value) {
     try {
         const res = await updateSheet(id, fieldsMap[key], value)
-        console.log('res: ', res);
+        // console.log('res: ', res);
+        return await getById(id)
     } catch (err) {
         logger.error('Error updating note:', err)
         throw err
@@ -130,7 +131,6 @@ module.exports = {
 }
 
 function _prepData({ values, range }) {
-    console.log('range: ', range)
     // const fields = {
     //     'status': 'סטטוס' ,
     //     'fullname': 'שם מלא' ,
@@ -174,10 +174,10 @@ function _prepLeadFromRow(row, rangeStart) {
         'createdAt',
         'channel',
         'source',
-        'status',
+        'beforeIntroStatus',
         'blocker',
         'afterIntroStatus',
-        'RegistrationStatus',
+        'registrationStatus',
         // 'leadManager',
         'lastContactBy',
         'lastContactAt',
@@ -189,7 +189,29 @@ function _prepLeadFromRow(row, rangeStart) {
     ]
     const lead = {}
     fields.forEach((field, idx) => (lead[field] = row[idx]))
-    lead._id = rangeStart
+    lead._id = parseInt(rangeStart)
+    
     lead.logs = row[14] ? row[14].split('\n') : []
+    lead.logs = lead.logs.map(log => {
+        const logDetails = log.split(' - ')
+        if (logDetails.length === 1) {
+            // if (logDetails[0].startWith('הודעה')) return { description: logDetails[0], type: 'message' }
+            return { description: logDetails[0] }
+        }
+        return {
+            createdAt: logDetails[0],
+            manager: logDetails[1],
+            description: logDetails[2],
+            type: logDetails[3],
+            status: logDetails[4],
+            result: logDetails[5],
+        }
+    })
+
+
+    lead.fullname = lead.fullname.trim()
+    const names = lead.fullname.split(' ')
+    lead.firstName = names[0]
+    lead.lastName = names.length > 1 ? names.slice(1).join(' ').trim() : ''
     return lead
 }
